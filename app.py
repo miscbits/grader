@@ -31,14 +31,17 @@ queue_url = cfg.get('aws.sqs.url')
 
 # Methods for processing a message from the queue
 def get_message():
-    return sqs.receive_message(
-        QueueUrl=queue_url,
-        MaxNumberOfMessages=1,
-        MessageAttributeNames=[
-            'All'
-        ],
-        VisibilityTimeout=60
-    )['Messages'][0]
+    try:
+        return sqs.receive_message(
+            QueueUrl=queue_url,
+            MaxNumberOfMessages=1,
+            MessageAttributeNames=[
+                'All'
+            ],
+            VisibilityTimeout=60
+        )['Messages'][0]
+    except:
+        return false
 
 def delete_message(message):
     # Delete received message from queue
@@ -57,17 +60,21 @@ SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
 SUREFIRE_REPORTS_DIRECTORY = "{}/target/surefire-reports".format(SUBMISSION_DIRECTORY)
 
 def main():
+    # Obtain a message from the queue. Once this method is run
+    # the script will have 30 minutes to process this lab
+    message = get_message()
+
+    if message is False:
+        return 0
+
+    message_body = json.loads(message['Body'])
+
     #############################################
     # MAKE A FRESH project FOLDER WITH NO CONTENT
     if os.path.exists(PROJECT_DIRECTORY):
         shutil.rmtree(PROJECT_DIRECTORY)
     os.mkdir(PROJECT_DIRECTORY)
     #############################################
-
-    # Obtain a message from the queue. Once this method is run
-    # the script will have 30 minutes to process this lab
-    message = get_message()
-    message_body = json.loads(message['Body'])
 
     #############################################
     # MAIN SCRIPT
