@@ -41,7 +41,7 @@ def get_message():
             VisibilityTimeout=60
         )['Messages'][0]
     except:
-        return false
+        return False
 
 def delete_message(message):
     # Delete received message from queue
