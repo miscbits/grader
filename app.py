@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import os
+import sys
 import shutil
 import subprocess
 import re
@@ -8,6 +9,9 @@ import json
 import string
 
 import random
+
+# CHANGE DIRECTORIES FOR CONFIGURATION PURPOSES
+os.chdir(os.path.dirname(sys.argv[0]))
 
 # LOAD CUSTOM CONFIGURATION
 import yaml
@@ -38,7 +42,7 @@ def get_message():
             MessageAttributeNames=[
                 'All'
             ],
-            VisibilityTimeout=60
+            VisibilityTimeout=300
         )['Messages'][0]
     except:
         return False
@@ -93,18 +97,20 @@ def main():
     tests_errors_pattern = re.compile(r'Errors:\s+(\d+)')
     tests_skipped_pattern = re.compile(r'Skipped:\s+(\d+)')
 
-    for filename in os.listdir(SUREFIRE_REPORTS_DIRECTORY):
-        if filename.endswith(".txt"):
-            with open(os.path.join(SUREFIRE_REPORTS_DIRECTORY, filename), "r") as report:
-                report_stats = report.readlines()[3]
-                ran = int(tests_ran_pattern.findall(report_stats)[0])
-                failed = int(tests_failed_pattern.findall(report_stats)[0])
-                errors = int(tests_errors_pattern.findall(report_stats)[0])
-                skipped = int(tests_skipped_pattern.findall(report_stats)[0])
-                overall = ran - errors - failed - skipped
+    try:
+        for filename in os.listdir(SUREFIRE_REPORTS_DIRECTORY):
+            if filename.endswith(".txt"):
+                with open(os.path.join(SUREFIRE_REPORTS_DIRECTORY, filename), "r") as report:
+                    report_stats = report.readlines()[3]
+                    ran = int(tests_ran_pattern.findall(report_stats)[0])
+                    failed = int(tests_failed_pattern.findall(report_stats)[0])
+                    errors = int(tests_errors_pattern.findall(report_stats)[0])
+                    skipped = int(tests_skipped_pattern.findall(report_stats)[0])
+                    overall = ran - errors - failed - skipped
 
-                results[filename.replace(".txt", "")] = {"ran": ran, "failed": failed, "errors": errors, "skipped": skipped, "overall": overall}
-
+                    results[filename.replace(".txt", "")] = {"ran": ran, "failed": failed, "errors": errors, "skipped": skipped, "overall": overall}
+    except:
+        results = {"default": {"overall": 0, "ran": 0}}
     total_tests = 0
     total_passes = 0
     for test in results.values():
@@ -113,8 +119,10 @@ def main():
 
     results["total_tests"] = total_tests
     results["total_passes"] = total_passes
-    results["grade"] =  "{}%".format(str(total_passes / total_tests * 100)[:5])
-
+    try:
+        results["grade"] =  "{}%".format(str(total_passes / total_tests * 100)[:5])
+    except:
+        results["grade"] = "0%"
     submission_endpoint = "{}/submissions/{}".format(cfg.get('zipcode.portal.url'), str(message_body['submission']['id']))
     data = {"grade": total_passes}
     headers = {"Authorization": "Bearer {}".format(cfg.get('zipcode.portal.token'))}
@@ -124,7 +132,7 @@ def main():
     response.raise_for_status
 
     delete_message(message)
-    
+
     #############################################
 
     #############################################
@@ -133,5 +141,4 @@ def main():
     shutil.rmtree(SUBMISSION_DIRECTORY)
     #############################################
 
-if __name__ == "__main__":
-    main()
+main()
