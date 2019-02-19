@@ -88,7 +88,7 @@ def main():
     shutil.rmtree("{}/src/test".format(SUBMISSION_DIRECTORY))
     shutil.copytree("{}/src/test".format(PROJECT_DIRECTORY), "{}/src/test".format(SUBMISSION_DIRECTORY))
 
-    subprocess.run(["mvn", "-f", "{}/{}/pom.xml".format(SCRIPT_PATH, SUBMISSION_DIRECTORY), "test"])
+    r = subprocess.run(["mvn", "-f", "{}/{}/pom.xml".format(SCRIPT_PATH, SUBMISSION_DIRECTORY), "test"], stdout=subprocess.PIPE, text=True)
 
     results = {}
 
@@ -124,7 +124,7 @@ def main():
     except:
         results["grade"] = "0%"
     submission_endpoint = "{}/submissions/{}".format(cfg.get('zipcode.portal.url'), str(message_body['submission']['id']))
-    data = {"grade": total_passes}
+    data = {"grade": total_passes, "grader_output": r.stdout}
     headers = {"Authorization": "Bearer {}".format(cfg.get('zipcode.portal.token'))}
 
     response = requests.put(submission_endpoint, params=data, headers=headers, verify=False)
