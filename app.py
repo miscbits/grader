@@ -124,11 +124,10 @@ def main():
     except:
         results["grade"] = "0%"
     submission_endpoint = "{}/submissions/{}".format(cfg.get('zipcode.portal.url'), str(message_body['submission']['id']))
-    data = {"grade": total_passes, "grader_output": r.stdout}
+    data = {"grade": total_passes, "grader_output": r.stdout[-975:]}
     headers = {"Authorization": "Bearer {}".format(cfg.get('zipcode.portal.token'))}
 
     response = requests.put(submission_endpoint, params=data, headers=headers, verify=False)
-
     response.raise_for_status
 
     delete_message(message)
