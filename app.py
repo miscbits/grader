@@ -82,7 +82,8 @@ def main():
 
     #############################################
     # MAIN SCRIPT
-    git.Repo.clone_from(message_body['assessment']['url'], PROJECT_DIRECTORY)
+    repo = git.Repo.clone_from(message_body['assessment']['url'], PROJECT_DIRECTORY)
+    repo.git.checkout('test')
     git.Repo.clone_from(message_body['submission']['submission_url'], SUBMISSION_DIRECTORY)
 
     shutil.rmtree("{}/src/test".format(SUBMISSION_DIRECTORY))
