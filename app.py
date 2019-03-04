@@ -77,68 +77,69 @@ def main():
     # MAKE A FRESH project FOLDER WITH NO CONTENT
     if os.path.exists(PROJECT_DIRECTORY):
         shutil.rmtree(PROJECT_DIRECTORY)
-    os.mkdir(PROJECT_DIRECTORY)
-    #############################################
-
-    #############################################
-    # MAIN SCRIPT
-    repo = git.Repo.clone_from(message_body['assessment']['url'], PROJECT_DIRECTORY)
-    repo.git.checkout('test')
-    git.Repo.clone_from(message_body['submission']['submission_url'], SUBMISSION_DIRECTORY)
-
-    shutil.rmtree("{}/src/test".format(SUBMISSION_DIRECTORY))
-    shutil.copytree("{}/src/test".format(PROJECT_DIRECTORY), "{}/src/test".format(SUBMISSION_DIRECTORY))
-
-    r = subprocess.run(["mvn", "-f", "{}/{}/pom.xml".format(SCRIPT_PATH, SUBMISSION_DIRECTORY), "test"], stdout=subprocess.PIPE, text=True)
-
-    results = {}
-
-    tests_ran_pattern = re.compile(r'run:\s+(\d+)')
-    tests_failed_pattern = re.compile(r'Failures:\s+(\d+)')
-    tests_errors_pattern = re.compile(r'Errors:\s+(\d+)')
-    tests_skipped_pattern = re.compile(r'Skipped:\s+(\d+)')
-
     try:
-        for filename in os.listdir(SUREFIRE_REPORTS_DIRECTORY):
-            if filename.endswith(".txt"):
-                with open(os.path.join(SUREFIRE_REPORTS_DIRECTORY, filename), "r") as report:
-                    report_stats = report.readlines()[3]
-                    ran = int(tests_ran_pattern.findall(report_stats)[0])
-                    failed = int(tests_failed_pattern.findall(report_stats)[0])
-                    errors = int(tests_errors_pattern.findall(report_stats)[0])
-                    skipped = int(tests_skipped_pattern.findall(report_stats)[0])
-                    overall = ran - errors - failed - skipped
+        os.mkdir(PROJECT_DIRECTORY)
+        #############################################
 
-                    results[filename.replace(".txt", "")] = {"ran": ran, "failed": failed, "errors": errors, "skipped": skipped, "overall": overall}
-    except:
-        results = {"default": {"overall": 0, "ran": 0}}
-    total_tests = 0
-    total_passes = 0
-    for test in results.values():
-        total_tests = total_tests + test["ran"]
-        total_passes = total_passes + test["overall"]
+        #############################################
+        # MAIN SCRIPT
+        repo = git.Repo.clone_from(message_body['assessment']['url'], PROJECT_DIRECTORY)
+        repo.git.checkout('test')
+        git.Repo.clone_from(message_body['submission']['submission_url'], SUBMISSION_DIRECTORY)
 
-    results["total_tests"] = total_tests
-    results["total_passes"] = total_passes
-    try:
-        results["grade"] =  "{}%".format(str(total_passes / total_tests * 100)[:5])
-    except:
-        results["grade"] = "0%"
-    submission_endpoint = "{}/submissions/{}".format(cfg.get('zipcode.portal.url'), str(message_body['submission']['id']))
-    data = {"grade": total_passes, "grader_output": r.stdout[-975:]}
-    headers = {"Authorization": "Bearer {}".format(cfg.get('zipcode.portal.token'))}
+        shutil.rmtree("{}/src/test".format(SUBMISSION_DIRECTORY))
+        shutil.copytree("{}/src/test".format(PROJECT_DIRECTORY), "{}/src/test".format(SUBMISSION_DIRECTORY))
 
-    response = requests.put(submission_endpoint, params=data, headers=headers, verify=False)
-    response.raise_for_status
+        r = subprocess.run(["mvn", "-f", "{}/{}/pom.xml".format(SCRIPT_PATH, SUBMISSION_DIRECTORY), "test"], stdout=subprocess.PIPE, text=True)
 
-    delete_message(message)
+        results = {}
 
-    #############################################
+        tests_ran_pattern = re.compile(r'run:\s+(\d+)')
+        tests_failed_pattern = re.compile(r'Failures:\s+(\d+)')
+        tests_errors_pattern = re.compile(r'Errors:\s+(\d+)')
+        tests_skipped_pattern = re.compile(r'Skipped:\s+(\d+)')
 
-    #############################################
-    # CLEANUP
-    shutil.rmtree(PROJECT_DIRECTORY)
-    shutil.rmtree(SUBMISSION_DIRECTORY)
-    #############################################
+        try:
+            for filename in os.listdir(SUREFIRE_REPORTS_DIRECTORY):
+                if filename.endswith(".txt"):
+                    with open(os.path.join(SUREFIRE_REPORTS_DIRECTORY, filename), "r") as report:
+                        report_stats = report.readlines()[3]
+                        ran = int(tests_ran_pattern.findall(report_stats)[0])
+                        failed = int(tests_failed_pattern.findall(report_stats)[0])
+                        errors = int(tests_errors_pattern.findall(report_stats)[0])
+                        skipped = int(tests_skipped_pattern.findall(report_stats)[0])
+                        overall = ran - errors - failed - skipped
+
+                        results[filename.replace(".txt", "")] = {"ran": ran, "failed": failed, "errors": errors, "skipped": skipped, "overall": overall}
+        except:
+            results = {"default": {"overall": 0, "ran": 0}}
+        total_tests = 0
+        total_passes = 0
+        for test in results.values():
+            total_tests = total_tests + test["ran"]
+            total_passes = total_passes + test["overall"]
+
+        results["total_tests"] = total_tests
+        results["total_passes"] = total_passes
+        try:
+            results["grade"] =  "{}%".format(str(total_passes / total_tests * 100)[:5])
+        except:
+            results["grade"] = "0%"
+        submission_endpoint = "{}/submissions/{}".format(cfg.get('zipcode.portal.url'), str(message_body['submission']['id']))
+        data = {"grade": total_passes, "grader_output": r.stdout[-975:]}
+        headers = {"Authorization": "Bearer {}".format(cfg.get('zipcode.portal.token'))}
+
+        response = requests.put(submission_endpoint, params=data, headers=headers, verify=False)
+        response.raise_for_status
+        delete_message(message)
+        #############################################
+    finally:
+        #############################################
+        # CLEANUP
+        if os.path.exists(PROJECT_DIRECTORY):
+            shutil.rmtree(PROJECT_DIRECTORY)
+        if os.path.exists(SUBMISSION_DIRECTORY):
+            shutil.rmtree(SUBMISSION_DIRECTORY)
+        #############################################
 
 main()
